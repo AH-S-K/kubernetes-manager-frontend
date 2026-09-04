@@ -10,7 +10,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { CopyButton } from "@/components/ui/copy-button";
-import { Loader2, Pencil, SearchX, Trash2 } from "lucide-react";
+import { AlertTriangle, Box, Clock, Cpu, Gauge, HardDrive, Layers, Loader2, Pencil, SearchX, Trash2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -19,10 +19,9 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageContainer, PageHeader } from "@/components/ui/page-header";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { DetailGridSkeleton } from "@/components/ui/skeletons";
 import { ReplicasDisplay } from "@/components/apps/replicas-display";
-import { isRollingOut, useApp, useCluster, useDeleteApp, useNamespace } from "@/hooks/api";
+import { isAppDegraded, isRollingOut, useApp, useCluster, useDeleteApp, useNamespace } from "@/hooks/api";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { parseIdParam, paths } from "@/lib/router/paths";
@@ -40,29 +39,17 @@ export function AppDetailPage() {
 
 /* ─────────────────────────── local pieces ─────────────────────────── */
 
-function TransientBanner({ state, appName }: { state: AppState; appName: string }) {
-  const gerund = state === "CREATING" ? "creating" : state === "UPDATING" ? "updating" : "deleting";
-  return (
-    <Alert className="border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/25 dark:bg-blue-500/10 dark:text-blue-300">
-      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-      <AlertTitle>Changes to this app are in progress</AlertTitle>
-      <AlertDescription>
-        Kubernetes is {gerund} <span className="font-mono">{appName}</span> (state:{" "}
-        <span className="font-mono">{state}</span>). The page auto-refreshes until
-        the state settles.
-      </AlertDescription>
-    </Alert>
-  );
-}
-
-function OverviewItem({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-1 text-sm">{children}</dd>
-    </div>
-  );
-}
+function TransientBanner({ appName }: { state: AppState; appName: string }) {
+   return (
+     <Alert className="border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/25 dark:bg-blue-500/10 dark:text-blue-300">
+       <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+       <AlertTitle>Rollout in progress</AlertTitle>
+       <AlertDescription>
+         Kubernetes is applying changes to <span className="font-mono font-medium">{appName}</span>. This view will automatically update once all pods are ready.
+       </AlertDescription>
+     </Alert>
+   );
+ }
 
 const MONO = "font-mono text-[13px]";
 
@@ -165,13 +152,6 @@ function AppDetailPageContent({ appId }: { appId: number }) {
         }
         breadcrumbs={crumbs}
         title={<span className={cn(MONO, "text-xl")}>{app.name}</span>}
-        badge={
-          rollingOut ? (
-            <StatusBadge state="UPDATING" label="Scaling / Rolling out" />
-          ) : (
-            <StatusBadge state={app.state} />
-          )
-        }
         description={
           <>
             In namespace{" "}
@@ -185,77 +165,93 @@ function AppDetailPageContent({ appId }: { appId: number }) {
           </>
         }
         actions={
-          <>
-            <DisabledWithReason reason={transient ? "Locked while changes are in progress." : undefined}>
-              <Button variant="outline" onClick={() => setEditOpen(true)} disabled={transient}>
-                <Pencil className="h-4 w-4" aria-hidden="true" /> Edit
-              </Button>
-            </DisabledWithReason>
-            <DisabledWithReason reason={transient ? "Locked while changes are in progress." : undefined}>
-              <Button
-                variant="outline"
-                className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                onClick={() => setConfirmDeleteOpen(true)}
-                disabled={transient}
-              >
-                <Trash2 className="h-4 w-4" aria-hidden="true" /> Delete
-              </Button>
-            </DisabledWithReason>
-          </>
+          <DisabledWithReason reason={transient ? "Locked while changes are in progress." : undefined}>
+            <Button variant="outline" onClick={() => setEditOpen(true)} disabled={transient}>
+              <Pencil className="h-4 w-4" aria-hidden="true" /> Edit
+            </Button>
+          </DisabledWithReason>
         }
       />
 
       <PageContainer className="space-y-6 py-6">
-        {isInProgress && (
-          <TransientBanner 
-            state={transient ? app.state : "UPDATING"} 
-            appName={app.name} 
-          />
-        )}
+        {isAppDegraded(app) ? (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+            <AlertTitle>Application deployment is degraded</AlertTitle>
+            <AlertDescription>
+              One or more pods failed to start (e.g. ImagePullBackOff). Click <strong>Edit</strong> to fix the image or resources.
+            </AlertDescription>
+          </Alert>
+        ) : isInProgress ? (
+          <TransientBanner state={transient ? app.state : "UPDATING"} appName={app.name} />
+        ) : null}
 
-        {/* Overview grid */}
-        <section className="rounded-xl border bg-card">
-          <div className="border-b px-5 py-3.5">
-            <h2 className="text-sm font-semibold">Overview</h2>
+        {/* Metric Cards Row */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Card 1: Replicas */}
+          <div className="rounded-xl border bg-card p-4 shadow-sm flex flex-col justify-between">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="text-xs font-medium uppercase tracking-wider">Replicas</span>
+              <Layers className="h-4 w-4 text-emerald-500" />
+            </div>
+            <div className="mt-3">
+              <ReplicasDisplay app={app} className="text-xl font-bold" />
+            </div>
           </div>
-          <dl className="grid grid-cols-1 gap-x-8 gap-y-5 px-5 py-5 sm:grid-cols-2">
-            <OverviewItem label="Image">
-              <div className="flex items-start gap-1">
-                <span className={cn(MONO, "break-all")}>{app.image}</span>
-                <CopyButton value={app.image} label="image" className="-mt-1" />
+
+          {/* Card 2: Image */}
+          <div className="rounded-xl border bg-card p-4 shadow-sm flex flex-col justify-between">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="text-xs font-medium uppercase tracking-wider">Image</span>
+              <Box className="h-4 w-4 text-primary" />
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-1">
+              <span className="font-mono text-sm font-semibold truncate" title={app.image}>
+                {app.image}
+              </span>
+              <CopyButton value={app.image} className="h-6 w-6 shrink-0" />
+            </div>
+          </div>
+
+          {/* Card 3: Compute Limits (Split Sub-tiles) */}
+          <div className="rounded-xl border bg-card p-4 shadow-sm flex flex-col justify-between">
+            <div className="flex items-center justify-between text-muted-foreground pb-1">
+              <span className="text-xs font-medium uppercase tracking-wider">Compute Limits</span>
+              <Gauge className="h-4 w-4 text-primary" />
+            </div>
+            <div className="mt-2 grid grid-cols-2 divide-x divide-border/60">
+              {/* CPU Column */}
+              <div className="flex flex-col pr-3">
+                <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                  <Cpu className="h-3 w-3 text-amber-500" /> CPU
+                </span>
+                <span className="mt-1 font-mono text-base font-bold text-foreground">
+                  {app.cpu}
+                </span>
               </div>
-            </OverviewItem>
-            <OverviewItem label="Replicas">
-              <ReplicasDisplay app={app} />
-            </OverviewItem>
-            <OverviewItem label="CPU">
-              <span className={MONO}>{app.cpu}</span>
-            </OverviewItem>
-            <OverviewItem label="Memory">
-              <span className={MONO}>{app.memory}</span>
-            </OverviewItem>
-            <OverviewItem label="Namespace">
-              {namespace ? (
-                <Link
-                  to={paths.namespaceApps(namespace.cluster_id, namespace.id)}
-                  className={cn(MONO, "hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring")}
-                >
-                  {namespace.name}
-                </Link>
-              ) : namespaceLookup.isLoading ? (
-                <Skeleton className="h-4 w-24" />
-              ) : (
-                <span className={cn(MONO, "text-muted-foreground")}>#{app.namespace_id}</span>
-              )}
-            </OverviewItem>
-            <OverviewItem label="Created">
-              <span className="text-muted-foreground">{formatDateTime(app.created_at)}</span>
-            </OverviewItem>
-            <OverviewItem label="Last updated">
-              <span className="text-muted-foreground">{formatDateTime(app.updated_at)}</span>
-            </OverviewItem>
-          </dl>
-        </section>
+              {/* Memory Column */}
+              <div className="flex flex-col pl-3">
+                <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                  <HardDrive className="h-3 w-3 text-violet-500" /> RAM
+                </span>
+                <span className="mt-1 font-mono text-base font-bold text-foreground">
+                  {app.memory}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 4: Last Updated */}
+          <div className="rounded-xl border bg-card p-4 shadow-sm flex flex-col justify-between">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="text-xs font-medium uppercase tracking-wider">Last Activity</span>
+              <Clock className="h-4 w-4 text-violet-500" />
+            </div>
+            <div className="mt-3 text-xs text-muted-foreground">
+              Updated: <span className="font-medium text-foreground">{formatDateTime(app.updated_at)}</span>
+            </div>
+          </div>
+        </div>
 
         {/* Pods sub-table */}
         <section className="rounded-xl border bg-card">
@@ -274,28 +270,35 @@ function AppDetailPageContent({ appId }: { appId: number }) {
         </section>
 
         {/* Danger Zone */}
-        <section
+        <div
           aria-busy={deleteApp.isPending || undefined}
           className={cn(
-            "rounded-xl border border-red-200 bg-red-50/40 p-5 dark:border-red-500/25 dark:bg-red-500/5",
+            "rounded-xl border border-destructive/25 bg-destructive/5 px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all",
             deleteApp.isPending && "pointer-events-none opacity-60",
           )}
         >
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="max-w-lg">
-              <h2 className="text-sm font-semibold text-red-600 dark:text-red-400">Danger Zone</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Deleting <span className={MONO}>{app.name}</span> removes its
-                Deployment and Pods from the cluster permanently. This action
-                cannot be undone.
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">Delete application</p>
+              <p className="text-xs text-muted-foreground truncate">
+                Permanently remove <span className="font-mono text-foreground font-medium">{app.name}</span> and terminate its pods.
               </p>
             </div>
-            <Button variant="destructive" onClick={() => setConfirmDeleteOpen(true)} disabled={!deletable}>
-              <Trash2 className="h-4 w-4" aria-hidden="true" />
-              Delete App
-            </Button>
           </div>
-        </section>
+
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setConfirmDeleteOpen(true)}
+            disabled={!deletable}
+            className="shrink-0"
+          >
+            Delete App
+          </Button>
+        </div>
       </PageContainer>
 
       <EditAppSheet

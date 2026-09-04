@@ -5,6 +5,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { CopyButton } from "@/components/ui/copy-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { cn } from "@/lib/utils";
 import type { Pod } from "@/types/api";
 
 const COMPACT = { headerClassName: "h-9", cellClassName: "py-2" } as const;
@@ -50,6 +51,42 @@ export function PodsTable({ pods, isLoading = false }: { pods: Pod[]; isLoading?
               </span>
             )}
           </div>
+        ),
+      },
+      {
+        accessorKey: "restarts",
+        header: "Restarts",
+        meta: { align: "center", ...COMPACT },
+        cell: ({ row }) => {
+          const count = row.original.restarts ?? 0;
+          return (
+            <span className={cn(
+              "font-mono text-xs tabular-nums px-2 py-0.5 rounded-full font-medium",
+              count > 0 ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : "text-muted-foreground"
+            )}>
+              {count}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "pod_ip",
+        header: "IP",
+        meta: { mono: true, ...COMPACT },
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground font-mono">
+            {row.original.pod_ip ?? "—"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "node_name",
+        header: "Node",
+        meta: { ...COMPACT },
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground font-mono">
+            {row.original.node_name ?? "—"}
+          </span>
         ),
       },
     ],

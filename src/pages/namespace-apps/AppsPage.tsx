@@ -27,7 +27,6 @@ import { DisabledWithReason } from "@/components/ui/disabled-with-reason";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageContainer, PageHeader } from "@/components/ui/page-header";
 import { QueryErrorState } from "@/components/ui/query-error-state";
-import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
   Tooltip,
@@ -44,11 +43,12 @@ import {
   useNamespace,
 } from "@/hooks/api";
 import { parseIdParam, paths } from "@/lib/router/paths";
-import { isTransient, isReconcilable, type App } from "@/types/api";
+import { isTransient, type App } from "@/types/api";
 import { CreateAppDialog } from "./CreateAppDialog";
 import { EditAppSheet } from "@/pages/app-detail/EditAppSheet";
 import { CollectionToolbar, matchesQuery } from "@/components/ui/collection-toolbar";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { getAppVisualStatus } from "@/hooks/api";
 
 
 /** Route wrapper — invalid params → 404 Response → route errorElement. */
@@ -70,7 +70,26 @@ function AppsPageContent({ clusterId, namespaceId }: { clusterId: number; namesp
 
   const clusterQuery = useCluster(clusterId);
   const namespaceLookup = useNamespace(namespaceId, clusterId);
-  const appsQuery = useApps(namespaceId);
+  const appsQuery = useApps(namespaceId, clusterId);
+
+  const isNamespaceMismatched =
+    Boolean(namespaceLookup.namespace) &&
+    namespaceLookup.namespace?.cluster_id !== clusterId;
+
+  if (isNamespaceMismatched) {
+    return (
+      <PageContainer className="py-12">
+        <EmptyState
+          icon={SearchX}
+          title="Namespace does not belong to this cluster"
+          description="The requested namespace was not found in the specified cluster."
+          action={<Button render={<Link to={paths.clusterNamespaces(clusterId)} />}>Back to namespaces</Button>}
+          className="rounded-xl border border-dashed"
+        />
+      </PageContainer>
+    );
+  }
+
   const deleteApp = useDeleteApp();
 
   const cluster = clusterQuery.data;
@@ -94,9 +113,7 @@ function AppsPageContent({ clusterId, namespaceId }: { clusterId: number; namesp
     id === "active"
       ? app.state === "ACTIVE" && !isRollingOut(app)
       : id === "progress"
-        ? isTransient(app.state) ||
-          isReconcilable(app.state) ||
-          isRollingOut(app)
+        ? (isTransient(app.state) || isRollingOut(app)) && !APP_FAILED.has(app.state)
         : APP_FAILED.has(app.state);
 
   const visible = apps.filter(
@@ -146,7 +163,11 @@ function AppsPageContent({ clusterId, namespaceId }: { clusterId: number; namesp
         accessorKey: "state",
         header: "Status",
         meta: { headerClassName: "text-center", cellClassName: "text-center" },
-        cell: ({ row }) => <StatusBadge state={row.original.state} />,
+        cell: ({ row }) => {
+          const app = row.original;
+          const { state, label } = getAppVisualStatus(app);
+          return <StatusBadge state={state} label={label} />;
+        },
       },
       {
         accessorKey: "image",
@@ -184,12 +205,13 @@ function AppsPageContent({ clusterId, namespaceId }: { clusterId: number; namesp
           const locked = isTransient(app.state);
           const reason = locked ? "Locked while Kubernetes applies changes to this app." : undefined;
           return (
-            <div className="flex justify-end gap-0.5">
+            <div className="flex justify-end gap-1">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8"
+                className="h-8 w-8 text-muted-foreground hover:bg-primary/15 hover:text-primary transition-all duration-150"
                 aria-label={`View app ${app.name}`}
+                title="View app details"
                 onClick={() => navigate(paths.appDetail(app.id))}
               >
                 <Eye className="h-4 w-4" aria-hidden="true" />
@@ -198,8 +220,9 @@ function AppsPageContent({ clusterId, namespaceId }: { clusterId: number; namesp
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8"
+                  className="h-8 w-8 text-muted-foreground hover:bg-amber-500/15 hover:text-amber-500 transition-all duration-150"
                   aria-label={`Edit app ${app.name}`}
+                  title="Edit application"
                   disabled={locked}
                   onClick={() => setEditingApp(app)}
                 >
@@ -210,8 +233,9 @@ function AppsPageContent({ clusterId, namespaceId }: { clusterId: number; namesp
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  className="h-8 w-8 text-muted-foreground hover:bg-destructive/15 hover:text-destructive transition-all duration-150"
                   aria-label={`Delete app ${app.name}`}
+                  title="Delete application"
                   disabled={locked}
                   onClick={() => setPendingDelete(app)}
                 >
@@ -237,11 +261,9 @@ function AppsPageContent({ clusterId, namespaceId }: { clusterId: number; namesp
         ]}
         title="Apps"
         badge={
-          namespace ? (
+          namespace && namespace.state !== "ACTIVE" ? (
             <StatusBadge state={namespace.state} />
-          ) : (
-            <Skeleton className="h-6 w-24 rounded-full" />
-          )
+          ) : null
         }
         description={
           <>
@@ -335,7 +357,6 @@ function AppsPageContent({ clusterId, namespaceId }: { clusterId: number; namesp
               columns={columns}
               data={visible}
               getRowId={(app) => String(app.id)}
-              onRowClick={(app) => navigate(paths.appDetail(app.id))}
               isRowPending={(app) => app.state === "DELETING" || app.id === deletingId}
               isLoading={appsQuery.isLoading}
               initialSorting={[{ id: "name", desc: false }]}

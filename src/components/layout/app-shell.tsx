@@ -3,31 +3,7 @@ import { Container } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { PageContainer } from "@/components/ui/page-header";
 import { paths } from "@/lib/router/paths";
-import axios from "axios";
-import { useQuery } from "@tanstack/react-query";
 
-function ApiHealthIndicator() {
-  const { data, isError } = useQuery({
-    queryKey: ["healthz-ready"],
-    queryFn: async () => {
-      const apiBase = import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
-      const healthUrl = apiBase.startsWith("http")
-        ? `${new URL(apiBase).origin}/healthz/ready/`
-        : "/healthz/ready/";
-      return (await axios.get<{ status: string }>(healthUrl, { timeout: 3000 })).data;
-    },
-    refetchInterval: 30_000,
-    retry: false,
-  });
-
-  const ok = !isError && data?.status === "ready";
-  return (
-    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mr-2" title={ok ? "API & DB Connected" : "API Disconnected"}>
-      <span className={`h-2 w-2 rounded-full ${ok ? "bg-emerald-500" : "bg-destructive animate-pulse"}`} />
-      <span className="hidden sm:inline font-mono text-[11px]">{ok ? "Ready" : "Degraded"}</span>
-    </div>
-  );
-}
 
 function TopBar() {
   return (
@@ -40,7 +16,6 @@ function TopBar() {
           Kubernetes Manager
         </Link>
         <div className="flex items-center gap-2">
-          <ApiHealthIndicator />
           <ThemeToggle />
         </div>
       </PageContainer>

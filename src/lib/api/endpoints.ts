@@ -79,6 +79,10 @@ export function parsePod(raw: unknown): Pod {
     name: toString(r["name"]),
     status: toString(r["phase"], "Unknown"),
     ready: r["ready"] === true,
+    restarts: toNumber(r["restarts"]) ?? 0,
+    pod_ip: typeof r["pod_ip"] === "string" ? r["pod_ip"] : undefined,
+    node_name: typeof r["node_name"] === "string" ? r["node_name"] : undefined,
+    created_at: typeof r["created_at"] === "string" ? r["created_at"] : undefined,
   };
 }
 
@@ -109,6 +113,7 @@ export function parseApp(raw: unknown): App {
     deployment_found: typeof r["deployment_found"] === "boolean" ? r["deployment_found"] : true,
     desired_replicas: desired,
     available_replicas: available ?? undefined,
+    pods: (Array.isArray(r["pods"]) ? r["pods"] : []).map(parsePod),
   };
 }
 
@@ -156,9 +161,12 @@ export const namespaceApi = {
 };
 
 export const appApi = {
-  list: (namespaceId: number): Promise<App[]> =>
+  list: (namespaceId: number, clusterId?: number): Promise<App[]> =>
     http
-      .get<unknown>(routes.apps, { namespace_id: namespaceId })
+      .get<unknown>(routes.apps, {
+        namespace_id: namespaceId,
+        ...(clusterId ? { cluster_id: clusterId } : {}),
+      })
       .then((d) => parseList(d, parseApp)),
 
   create: (payload: AppCreatePayload): Promise<App> =>
@@ -191,3 +199,4 @@ export const queryKeys = {
   apps: (namespaceId: number) => ["namespaces", namespaceId, "apps"] as const,
   app: (appId: number) => ["apps", appId] as const,
 };
+

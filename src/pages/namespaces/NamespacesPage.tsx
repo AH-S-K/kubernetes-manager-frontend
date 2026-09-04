@@ -9,24 +9,24 @@
  * "Invalid id in URL" → 404 boundary; "valid id, missing cluster" →
  * contextual inline not-found after the query settles.
  */
-import { useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import type { ColumnDef } from "@tanstack/react-table";
-import { AlertTriangle, Layers, Loader2, Plus, SearchX, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { AlertTriangle, ChevronRight, Layers, Loader2, Plus, SearchX, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { DataTable } from "@/components/ui/data-table";
 import { DisabledWithReason } from "@/components/ui/disabled-with-reason";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageContainer, PageHeader } from "@/components/ui/page-header";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { QueryErrorState } from "@/components/ui/query-error-state";
+import { CardGridSkeleton } from "@/components/ui/skeletons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { UnreachableBanner } from "@/components/ui/unreachable-banner";
 import { useCluster, useDeleteNamespace, useNamespaces } from "@/hooks/api";
 import { formatDateTime } from "@/lib/format";
 import { parseIdParam, paths } from "@/lib/router/paths";
-import { isTransient, isReconcilable, type Namespace } from "@/types/api";
+import { isTransient, type Namespace } from "@/types/api";
 import { CreateNamespaceDialog } from "./CreateNamespaceDialog";
 import { CollectionToolbar, matchesQuery } from "@/components/ui/collection-toolbar";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
@@ -39,12 +39,96 @@ export function NamespacesPage() {
   return <NamespacesPageContent clusterId={id} />;
 }
 
+function NamespaceCard({
+  namespace,
+  clusterId,
+  onDelete,
+}: {
+  namespace: Namespace;
+  clusterId: number;
+  onDelete: (ns: Namespace) => void;
+}) {
+  const appLabel = namespace.app_count === 1 ? "app" : "apps";
+  const blocked = namespace.app_count > 0;
+
+  return (
+    <article className="group relative flex flex-col justify-between rounded-xl border bg-card p-5 transition-all hover:border-primary/50 hover:bg-accent/20 shadow-sm">
+      <Link
+        to={paths.namespaceApps(clusterId, namespace.id)}
+        className="absolute inset-0 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+        aria-label={`View apps in ${namespace.name}`}
+      />
+
+      <div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500">
+              <Layers className="h-4 w-4" aria-hidden="true" />
+            </span>
+            <div className="min-w-0 relative z-10">
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <h2 className="cursor-default truncate font-mono text-sm font-semibold tracking-tight text-foreground hover:underline" />
+                  }
+                >
+                  {namespace.name}
+                </TooltipTrigger>
+                <TooltipContent className="font-mono text-xs max-w-xs break-all">
+                  {namespace.name}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
+
+          <div className="relative z-10 flex items-center gap-1.5 shrink-0">
+            <StatusBadge state={namespace.state} size="sm" />
+            <DisabledWithReason
+              reason={
+                blocked
+                  ? `Cannot delete namespace containing active applications. Delete all apps first.`
+                  : undefined
+              }
+            >
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:bg-destructive/15 hover:text-destructive transition-all"
+                aria-label={`Delete namespace ${namespace.name}`}
+                disabled={blocked}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(namespace);
+                }}
+              >
+                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            </DisabledWithReason>
+          </div>
+        </div>
+
+        <p className="mt-4 text-xs text-muted-foreground">
+          Created: {formatDateTime(namespace.created_at)}
+        </p>
+      </div>
+
+      <div className="mt-4 flex items-center justify-between border-t border-border/70 pt-3 pointer-events-none">
+        <span className="text-xs font-medium text-muted-foreground">
+          <span className="font-semibold tabular-nums text-foreground">{namespace.app_count}</span> {appLabel}
+        </span>
+
+        <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors group-hover:text-primary">
+          Browse
+          <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+        </span>
+      </div>
+    </article>
+  );
+}
+
 function NamespacesPageContent({ clusterId }: { clusterId: number }) {
-  const navigate = useNavigate();
   const [createOpen, setCreateOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Namespace | null>(null);
-  /** Row awaiting its 204 — drives DataTable's row-pending state. */
-  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const clusterQuery = useCluster(clusterId);
   const namespacesQuery = useNamespaces(clusterId);
@@ -69,7 +153,7 @@ function NamespacesPageContent({ clusterId }: { clusterId: number }) {
     id === "active"
       ? ns.state === "ACTIVE"
       : id === "progress"
-        ? isTransient(ns.state) || isReconcilable(ns.state)
+        ? isTransient(ns.state) && !NS_FAILED.has(ns.state)
         : NS_FAILED.has(ns.state);
 
   const visible = namespaces.filter(
@@ -92,81 +176,13 @@ function NamespacesPageContent({ clusterId }: { clusterId: number }) {
   const hasTransient = namespaces.some((ns) => isTransient(ns.state));
 
   // Create CTA is disabled while the cluster is missing (loading) or
-  // UNREACHABLE; the reason surfaces via tooltip + the amber banner text.
+  // UNREACHABLE; the reason surfaces via tooltip  the amber banner text.
   const createDisabled = !cluster || cluster.state === "UNREACHABLE";
   const createDisabledReason =
     cluster?.state === "UNREACHABLE"
       ? "Cluster is unreachable — restore connectivity to create namespaces."
       : undefined;
 
-  const columns = useMemo<ColumnDef<Namespace>[]>(
-    () => [
-      {
-        accessorKey: "name",
-        header: "Name",
-        // Real link (keyboard/AT path into Apps); row click covers pointer users.
-        cell: ({ row }) => (
-          <Link
-            to={paths.namespaceApps(clusterId, row.original.id)}
-            className="font-mono text-[13px] font-medium hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
-          >
-            {row.original.name}
-          </Link>
-        ),
-      },
-      {
-        accessorKey: "state",
-        header: "State",
-        meta: { headerClassName: "text-center", cellClassName: "text-center" },
-        cell: ({ row }) => <StatusBadge state={row.original.state} />,
-      },
-      {
-        accessorKey: "app_count",
-        header: "Apps",
-        meta: { align: "right" }, // text-right + tabular-nums via DataTable meta
-      },
-      {
-        // ISO 8601 strings sort chronologically as plain strings — no custom sortingFn.
-        accessorKey: "created_at",
-        header: "Created",
-        cell: ({ row }) => (
-          <span className="text-muted-foreground" title={row.original.created_at}>
-            {formatDateTime(row.original.created_at)}
-          </span>
-        ),
-      },
-      {
-        id: "actions",
-        header: () => <span className="sr-only">Actions</span>,
-        meta: { align: "right", isActions: true },
-        cell: ({ row }) => {
-          const ns = row.original;
-          const blocked = ns.app_count > 0;
-          return (
-            <DisabledWithReason
-              reason={
-                blocked
-                  ? `Namespace has apps. Delete apps first — the API refuses deletion while ${ns.app_count} app(s) exist.`
-                  : undefined
-              }
-            >
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                aria-label={`Delete namespace ${ns.name}`}
-                disabled={blocked}
-                onClick={() => setPendingDelete(row.original)}
-              >
-                <Trash2 className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            </DisabledWithReason>
-          );
-        },
-      },
-    ],
-    [clusterId],
-  );
 
   // Valid id, but the clusters list doesn't contain it (deleted elsewhere /
   // stale link). Contextual not-found keeps the shell — only after the query
@@ -192,14 +208,9 @@ function NamespacesPageContent({ clusterId }: { clusterId: number }) {
 
   const handleDeleteConfirm = () => {
     if (!pendingDelete) return;
-    const target = pendingDelete;
-    setDeletingId(target.id);
-
     deleteNamespace.mutate(
-      { id: target.id, clusterId: target.cluster_id, name: target.name },
+      { id: pendingDelete.id, clusterId: pendingDelete.cluster_id, name: pendingDelete.name },
       {
-        onSettled: () =>
-          setDeletingId((current) => (current === target.id ? null : current)),
         onSuccess: () => setPendingDelete(null),
       },
     );
@@ -226,7 +237,7 @@ function NamespacesPageContent({ clusterId }: { clusterId: number }) {
         description={
           cluster ? (
             <>
-              Provisioned on{" "}
+              Cluster:{" "}
               <span className="font-mono text-[13px]">{cluster.name}</span>
               <span className="px-1 text-muted-foreground/60">·</span>
               <span className="font-mono text-[13px]">{cluster.address}</span>
@@ -296,36 +307,26 @@ function NamespacesPageContent({ clusterId }: { clusterId: number }) {
               total={namespaces.length}
               onClear={clear}
             />
-            <DataTable
-              className="overflow-hidden rounded-xl border bg-card"
-              columns={columns}
-              data={visible}
-              getRowId={(ns) => String(ns.id)}
-              onRowClick={(ns) => navigate(paths.namespaceApps(clusterId, ns.id))}
-              isRowPending={(ns) => ns.state === "DELETING" || ns.id === deletingId}
-              isLoading={namespacesQuery.isLoading}
-              ariaLabel="Namespaces"
-              emptyState={
-                <EmptyState
-                  icon={Layers}
-                  title="No namespaces on this cluster"
-                  description="Namespaces group the applications running on a cluster. Create the first one to get started."
-                  action={
-                    cluster ? (
-                      <DisabledWithReason reason={createDisabledReason}>
-                        <Button
-                          onClick={() => setCreateOpen(true)}
-                          disabled={cluster.state === "UNREACHABLE"}
-                        >
-                          <Plus className="h-4 w-4" aria-hidden="true" />
-                          Create Namespace
-                        </Button>
-                      </DisabledWithReason>
-                    ) : undefined
-                  }
-                />
-              }
-            />
+            {namespacesQuery.isLoading ? (
+              <CardGridSkeleton count={3} />
+            ) : visible.length === 0 ? (
+              <EmptyState
+                icon={Layers}
+                title="No namespaces found"
+                description="No namespaces match your current search."
+              />
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {visible.map((ns) => (
+                  <NamespaceCard
+                    key={ns.id}
+                    namespace={ns}
+                    clusterId={clusterId}
+                    onDelete={setPendingDelete}
+                  />
+                ))}
+              </div>
+            )}
           </>
         )}
       </PageContainer>

@@ -109,12 +109,17 @@ export interface App {
   deployment_found?: boolean;
   desired_replicas?: number;
   available_replicas?: number;
+  pods?: Pod[];
 }
 
 export interface Pod {
   name: string;
   status: string; // "Running" | "Pending" | "CrashLoopBackOff" | …
   ready: boolean;
+  restarts?: number;
+  pod_ip?: string;
+  node_name?: string;
+  created_at?: string;
 }
 
 

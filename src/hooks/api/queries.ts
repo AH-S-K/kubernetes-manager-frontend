@@ -8,7 +8,7 @@ import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-q
 import { appApi, clusterApi, namespaceApi, queryKeys } from "@/lib/api/endpoints";
 import { ApiError } from "@/lib/api/client";
 import { POLL_INTERVAL_MS, ROLLOUT_POLL_INTERVAL_MS } from "@/lib/query/client";
-import { isReconcilable, isTransient } from "@/types/api";
+import { isTransient } from "@/types/api";
 import type { App, AppDetail, Cluster, Namespace } from "@/types/api";
 
 /** Structural subset of TanStack's Query that the interval callbacks need. */
@@ -57,9 +57,7 @@ export function isRollingOut(app: App): boolean {
 function pollWhileAnyTransient(
   query: QueryLike<{ state: string }[]>,
 ): number | false {
-  return query.state.data?.some(
-    (e) => isTransient(e.state) || isReconcilable(e.state),
-  )
+  return query.state.data?.some((e) => isTransient(e.state))
     ? POLL_INTERVAL_MS
     : false;
 }
@@ -69,12 +67,11 @@ function pollWhileAnyTransient(
 function pollWhileAppsConverging(query: QueryLike<App[]>): number | false {
   const apps = query.state.data;
   if (!apps) return false;
-  if (apps.some((a) => isTransient(a.state) || isReconcilable(a.state)))
+  if (apps.some((a) => isTransient(a.state)))
     return POLL_INTERVAL_MS;
   if (apps.some(isRollingOut)) return ROLLOUT_POLL_INTERVAL_MS;
   return false;
 }
-
 
 /**
  * App detail: transient state, an ACTIVE rollout still converging, or any
@@ -84,7 +81,7 @@ function pollWhileAppsConverging(query: QueryLike<App[]>): number | false {
 function pollWhileAppConverging(query: QueryLike<AppDetail>): number | false {
   const app = query.state.data;
   if (!app) return false;
-  if (isTransient(app.state) || isReconcilable(app.state))
+  if (isTransient(app.state))
     return POLL_INTERVAL_MS;
   if (isRollingOut(app)) return ROLLOUT_POLL_INTERVAL_MS;
   return false;
@@ -109,10 +106,10 @@ export function useNamespaces(clusterId: number): UseQueryResult<Namespace[], Ap
   });
 }
 
-export function useApps(namespaceId: number): UseQueryResult<App[], ApiError> {
+export function useApps(namespaceId: number, clusterId?: number): UseQueryResult<App[], ApiError> {
   return useQuery<App[], ApiError>({
-    queryKey: queryKeys.apps(namespaceId),
-    queryFn: () => appApi.list(namespaceId),
+    queryKey: ["namespaces", namespaceId, "apps", clusterId],
+    queryFn: () => appApi.list(namespaceId, clusterId),
     enabled: Number.isFinite(namespaceId),
     refetchInterval: pollWhileAppsConverging,
   });
@@ -215,4 +212,30 @@ export function useNamespace(namespaceId: number, clusterId?: number): Namespace
     isError: scan.isError,
     error: scan.error,
   };
+}
+
+export const POD_ERROR_STATUSES = new Set([
+  "CrashLoopBackOff",
+  "ImagePullBackOff",
+  "ErrImagePull",
+  "Error",
+  "Evicted",
+  "OOMKilled",
+]);
+
+export function isAppDegraded(app: App): boolean {
+  const pods = "pods" in app && Array.isArray((app as any).pods)
+    ? ((app as any).pods as Array<{ status: string }>)
+    : undefined;
+  return !!pods && pods.some((p) => POD_ERROR_STATUSES.has(p.status));
+}
+
+export function getAppVisualStatus(app: App): { state: string; label: string } {
+  if (isAppDegraded(app)) {
+    return { state: "ERROR", label: "Degraded" };
+  }
+  if (isRollingOut(app)) {
+    return { state: "UPDATING", label: "Progressing" };
+  }
+  return { state: app.state, label: app.state === "ACTIVE" ? "Active" : app.state };
 }

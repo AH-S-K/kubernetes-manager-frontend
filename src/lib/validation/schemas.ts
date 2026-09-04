@@ -17,9 +17,9 @@ import type {
 /** validators.NAME_RE */
 export const K8S_NAME_RE = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
 /** validators.CPU_RE */
-export const CPU_RE = /^(?:[0-9]+m|[0-9]+(?:\.[0-9]+)?)$/;
+export const CPU_RE = /^(?:[1-9][0-9]*m|[0-9]*\.[1-9][0-9]*|[1-9][0-9]*(?:\.[0-9]+)?)$/;
 /** validators.MEMORY_RE */
-export const MEMORY_RE = /^[0-9]+(?:\.[0-9]+)?(Ki|Mi|Gi|Ti|K|M|G|T)?$/;
+export const MEMORY_RE = /^(?:[1-9][0-9]*(?:Ki|Mi|Gi|Ti)|[1-9][0-9]*(?:\.[0-9]+)?(?:K|M|G|T)?)$/;
 /** validators.ADDRESS_RE — applied AFTER scheme/path stripping, like the backend */
 export const ADDRESS_RE = /^[a-zA-Z0-9.-]+:\d+$/;
 

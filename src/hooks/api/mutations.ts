@@ -37,7 +37,7 @@ export function useCreateCluster() {
   return useMutation({
     mutationFn: (payload: ClusterCreatePayload) => clusterApi.create(payload),
     onSuccess: (cluster) => {
-      toast.success(`Cluster '${cluster.name}' created successfully.`);
+      toast.success(`Cluster '${cluster.name}' connected successfully.`);
       // Seed for instant feedback; invalidate so the server's canonical
       // ordering/counts reconcile in the background.
       qc.setQueryData<Cluster[]>(queryKeys.clusters, (prev) =>
@@ -110,7 +110,7 @@ export function useCreateApp() {
   return useMutation({
     mutationFn: ({ payload }: CreateAppVars) => appApi.create(payload),
     onSuccess: (app, { payload, clusterId }) => {
-      toast.success(`App '${app.name}' created successfully.`);
+      toast.success(`Application '${app.name}' deployed successfully.`);
       // Seed with payload.namespace_id (we know it) — the response's
       // namespace_id is unconfirmed since services.py wasn't provided.
       qc.setQueryData<App[]>(
@@ -155,12 +155,12 @@ export function useDeleteApp() {
   return useMutation({
     mutationFn: ({ id }: DeleteAppVars) => appApi.delete(id),
     onSuccess: (_data, { id, namespaceId, name }) => {
-      toast.success(`App '${name}' deleted.`);
-      // 204 confirmed — drop the row and the detail cache (the detail page
-      // navigates back; removing prevents a flash of stale data).
-      qc.setQueryData<App[]>(queryKeys.apps(namespaceId), (prev) =>
-        prev?.filter((a) => a.id !== id),
-      );
+     toast.success(`App '${name}' deletion in progress...`);
+     // Instead of removing it immediately, the row status is updated to DELETING
+     qc.setQueryData<App[]>(queryKeys.apps(namespaceId), (prev) =>
+       prev?.map((a) => (a.id === id ? { ...a, state: "DELETING" } : a)),
+     );
+     qc.invalidateQueries({ queryKey: queryKeys.apps(namespaceId) });
       qc.removeQueries({ queryKey: queryKeys.app(id) });
       // clusterId may be 0 from the detail page before context resolves —
       // refresh every cached namespace list so app_count stays truthful.

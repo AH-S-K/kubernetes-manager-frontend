@@ -151,7 +151,7 @@ export function CreateAppDialog({
               {form.formState.isSubmitting && (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               )}
-              Create App
+              Deploy Application
             </Button>
           </DialogFooter>
         </form>
