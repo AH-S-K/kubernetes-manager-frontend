@@ -46,11 +46,10 @@ export function EditAppSheet({ open, app, onOpenChange }: EditAppSheetProps) {
     onOpenChange(next);
   };
 
-  if (!app) return null;
-
-  // محاسبه زنده فیلدهای تغییر یافته برای نمایش Diff
+  // Calculate the changed fields (always called before any early return)
   const watchedValues = watch();
   const changedFields = useMemo(() => {
+    if (!app) return [];
     const list: { name: string; oldVal: string | number; newVal: string | number }[] = [];
     if (watchedValues.image && watchedValues.image !== app.image) {
       list.push({ name: "Image", oldVal: app.image, newVal: watchedValues.image });
@@ -66,6 +65,9 @@ export function EditAppSheet({ open, app, onOpenChange }: EditAppSheetProps) {
     }
     return list;
   }, [watchedValues, app]);
+
+  // If there are no apps, keep the entire sheet closed
+  if (!app) return null;
 
   const hasChanges = changedFields.length > 0;
 
@@ -93,7 +95,6 @@ export function EditAppSheet({ open, app, onOpenChange }: EditAppSheetProps) {
         side="right"
         className="flex flex-col gap-0 p-0 sm:max-w-lg bg-background border-l border-border shadow-2xl"
       >
-        {/* Header با جزئیات بهتر */}
         <SheetHeader className="border-b border-border/80 px-6 py-5 bg-card/40 text-left">
           <div className="flex items-center gap-2">
             <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
@@ -107,7 +108,6 @@ export function EditAppSheet({ open, app, onOpenChange }: EditAppSheetProps) {
           </SheetDescription>
         </SheetHeader>
 
-        {/* Body Container بدون باگ کشش عمودی */}
         <form onSubmit={onSubmit} noValidate className="flex min-h-0 flex-1 flex-col justify-between">
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
             <AppResourceFields
@@ -121,7 +121,6 @@ export function EditAppSheet({ open, app, onOpenChange }: EditAppSheetProps) {
               }}
             />
 
-            {/* Live Diff Summary Box */}
             {hasChanges && (
               <div className="rounded-lg border border-primary/25 bg-primary/5 p-3.5 transition-all">
                 <p className="flex items-center gap-1.5 font-medium text-xs text-primary mb-2">
@@ -150,7 +149,6 @@ export function EditAppSheet({ open, app, onOpenChange }: EditAppSheetProps) {
             )}
           </div>
 
-          {/* Sticky Action Footer */}
           <div className="border-t border-border/80 bg-card/40 px-6 py-4 flex items-center justify-between">
             <span className="text-xs text-muted-foreground font-mono">
               {hasChanges ? `${changedFields.length} update(s) ready` : "No modifications"}

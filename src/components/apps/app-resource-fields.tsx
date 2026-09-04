@@ -111,7 +111,7 @@ export function AppResourceFields({ form, idPrefix, originalValues }: AppResourc
       {/* Compute Resources (CPU & Memory in 2 Columns or Neat Cards) */}
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
         {/* CPU Card */}
-        <div className="flex flex-col justify-between rounded-lg border border-border/80 bg-card/60 p-3.5 shadow-sm">
+        <div className="flex flex-col gap-3 rounded-lg border border-border/80 bg-card/60 p-3.5 shadow-sm">
           <div>
             <div className="flex items-center justify-between pb-2">
               <Label htmlFor={`${idPrefix}-cpu`} className="flex items-center gap-1.5 font-medium text-xs">
@@ -140,7 +140,7 @@ export function AppResourceFields({ form, idPrefix, originalValues }: AppResourc
         </div>
 
         {/* Memory Card */}
-        <div className="flex flex-col justify-between rounded-lg border border-border/80 bg-card/60 p-3.5 shadow-sm">
+        <div className="flex flex-col gap-3 rounded-lg border border-border/80 bg-card/60 p-3.5 shadow-sm">
           <div>
             <div className="flex items-center justify-between pb-2">
               <Label htmlFor={`${idPrefix}-memory`} className="flex items-center gap-1.5 font-medium text-xs">

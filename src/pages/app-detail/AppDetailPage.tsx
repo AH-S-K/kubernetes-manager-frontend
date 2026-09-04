@@ -22,7 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DetailGridSkeleton } from "@/components/ui/skeletons";
 import { ReplicasDisplay } from "@/components/apps/replicas-display";
-import { useApp, useCluster, useDeleteApp, useNamespace } from "@/hooks/api";
+import { isRollingOut, useApp, useCluster, useDeleteApp, useNamespace } from "@/hooks/api";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { parseIdParam, paths } from "@/lib/router/paths";
@@ -134,6 +134,8 @@ function AppDetailPageContent({ appId }: { appId: number }) {
 
   /* ── Success ── */
   const transient = isTransient(app.state);
+  const rollingOut = isRollingOut(app);
+  const isInProgress = transient || rollingOut;
   const deletable = app.state !== "DELETING";
 
   const crumbs = [
@@ -163,7 +165,13 @@ function AppDetailPageContent({ appId }: { appId: number }) {
         }
         breadcrumbs={crumbs}
         title={<span className={cn(MONO, "text-xl")}>{app.name}</span>}
-        badge={<StatusBadge state={app.state} />}
+        badge={
+          rollingOut ? (
+            <StatusBadge state="UPDATING" label="Scaling / Rolling out" />
+          ) : (
+            <StatusBadge state={app.state} />
+          )
+        }
         description={
           <>
             In namespace{" "}
@@ -198,7 +206,12 @@ function AppDetailPageContent({ appId }: { appId: number }) {
       />
 
       <PageContainer className="space-y-6 py-6">
-        {transient && <TransientBanner state={app.state} appName={app.name} />}
+        {isInProgress && (
+          <TransientBanner 
+            state={transient ? app.state : "UPDATING"} 
+            appName={app.name} 
+          />
+        )}
 
         {/* Overview grid */}
         <section className="rounded-xl border bg-card">

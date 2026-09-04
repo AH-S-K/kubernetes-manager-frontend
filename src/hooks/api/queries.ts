@@ -20,11 +20,35 @@ interface QueryLike<T> {
 export function isRollingOut(app: App): boolean {
   if (app.state !== "ACTIVE") return false;
   if (app.deployment_found === false) return false;
-  if (typeof app.ready === "boolean") return !app.ready;
-  if (typeof app.available_replicas === "number") {
-    const desired = app.desired_replicas ?? app.replicas;
-    return app.available_replicas < desired;
+
+  const desired = app.desired_replicas ?? app.replicas ?? 0;
+
+  // 1. If the pod list exists (on the detail page or live list), inspect their actual status
+  const pods = "pods" in app && Array.isArray((app as any).pods) 
+    ? ((app as any).pods as Array<{ status: string; ready: boolean }>)
+    : undefined;
+
+  if (pods) {
+    // a) During Scale Down or Scale Up, if the total number of pods has not reached the desired count yet
+    if (pods.length !== desired) return true;
+
+    // b) The presence of any Terminating pod means the rollout is still in progress
+    if (pods.some((p) => p.status === "Terminating")) return true;
+
+    // c) When desired > 0, all pods must be both Running and Ready
+    if (desired > 0 && pods.some((p) => !p.ready || p.status !== "Running")) return true;
   }
+
+  // 2. The number of Available replicas must exactly match the desired count (neither more nor less)
+  if (typeof app.available_replicas === "number" && app.available_replicas !== desired) {
+    return true;
+  }
+
+  // 3. The global ready flag returned by the backend must be true
+  if (typeof app.ready === "boolean" && !app.ready) {
+    return true;
+  }
+
   return false;
 }
 
