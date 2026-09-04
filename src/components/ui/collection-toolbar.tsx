@@ -25,13 +25,13 @@ export function CollectionToolbar({
 }) {
   const filtering = search.trim() !== "" || selected.length > 0;
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-2">
-      <div className="relative w-full max-w-xs">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+    <div className="mb-6 flex flex-wrap items-center gap-3">
+      <div className="relative w-full max-w-md">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
         <Input
           type="search" value={search} onChange={(e) => onSearchChange(e.target.value)}
           placeholder={placeholder} aria-label={placeholder} autoComplete="off"
-          className="h-8 pl-8"
+          className="h-10 pl-9 text-sm bg-card/60 rounded-lg shadow-2xs"
         />
       </div>
       <div role="group" aria-label="Status filters" className="flex flex-wrap gap-1.5">

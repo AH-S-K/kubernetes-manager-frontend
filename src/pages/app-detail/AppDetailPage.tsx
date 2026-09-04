@@ -189,66 +189,67 @@ function AppDetailPageContent({ appId }: { appId: number }) {
         {/* Metric Cards Row */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {/* Card 1: Replicas */}
-          <div className="rounded-xl border bg-card p-4 shadow-sm flex flex-col justify-between">
+          <div className="rounded-xl border bg-card p-5 shadow-xs flex flex-col justify-between min-h-[125px] transition-all hover:border-border/80">
             <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-medium uppercase tracking-wider">Replicas</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Pod Replicas</span>
               <Layers className="h-4 w-4 text-emerald-500" />
             </div>
-            <div className="mt-3">
-              <ReplicasDisplay app={app} className="text-xl font-bold" />
+            <div className="mt-2">
+              <ReplicasDisplay app={app} variant="kpi" />
             </div>
           </div>
 
           {/* Card 2: Image */}
-          <div className="rounded-xl border bg-card p-4 shadow-sm flex flex-col justify-between">
+          <div className="rounded-xl border bg-card p-5 shadow-xs flex flex-col justify-between min-h-[125px] transition-all hover:border-border/80">
             <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-medium uppercase tracking-wider">Image</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Container Image</span>
               <Box className="h-4 w-4 text-primary" />
             </div>
-            <div className="mt-3 flex items-center justify-between gap-1">
-              <span className="font-mono text-sm font-semibold truncate" title={app.image}>
-                {app.image}
-              </span>
-              <CopyButton value={app.image} className="h-6 w-6 shrink-0" />
+            <div className="mt-2">
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/40 px-2.5 py-1.5">
+                <span className="font-mono text-sm font-semibold text-foreground truncate" title={app.image}>
+                  {app.image}
+                </span>
+                <CopyButton value={app.image} className="h-6 w-6 shrink-0" />
+              </div>
             </div>
           </div>
 
-          {/* Card 3: Compute Limits (Split Sub-tiles) */}
-          <div className="rounded-xl border bg-card p-4 shadow-sm flex flex-col justify-between">
+          {/* Card 3: Compute Limits */}
+          <div className="rounded-xl border bg-card p-5 shadow-xs flex flex-col justify-between min-h-[125px] transition-all hover:border-border/80">
             <div className="flex items-center justify-between text-muted-foreground pb-1">
-              <span className="text-xs font-medium uppercase tracking-wider">Compute Limits</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Compute Limits</span>
               <Gauge className="h-4 w-4 text-primary" />
             </div>
-            <div className="mt-2 grid grid-cols-2 divide-x divide-border/60">
-              {/* CPU Column */}
+            <div className="mt-1 grid grid-cols-2 divide-x divide-border/60">
               <div className="flex flex-col pr-3">
-                <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-                  <Cpu className="h-3 w-3 text-amber-500" /> CPU
+                <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <Cpu className="h-3.5 w-3.5 text-amber-500" /> CPU
                 </span>
-                <span className="mt-1 font-mono text-base font-bold text-foreground">
+                <span className="mt-1 font-mono text-xl font-bold text-foreground">
                   {app.cpu}
                 </span>
               </div>
-              {/* Memory Column */}
               <div className="flex flex-col pl-3">
-                <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-                  <HardDrive className="h-3 w-3 text-violet-500" /> RAM
+                <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <HardDrive className="h-3.5 w-3.5 text-violet-500" /> RAM
                 </span>
-                <span className="mt-1 font-mono text-base font-bold text-foreground">
+                <span className="mt-1 font-mono text-xl font-bold text-foreground">
                   {app.memory}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Card 4: Last Updated */}
-          <div className="rounded-xl border bg-card p-4 shadow-sm flex flex-col justify-between">
+          {/* Card 4: Last Activity */}
+          <div className="rounded-xl border bg-card p-5 shadow-xs flex flex-col justify-between min-h-[125px] transition-all hover:border-border/80">
             <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-medium uppercase tracking-wider">Last Activity</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Last Activity</span>
               <Clock className="h-4 w-4 text-violet-500" />
             </div>
-            <div className="mt-3 text-xs text-muted-foreground">
-              Updated: <span className="font-medium text-foreground">{formatDateTime(app.updated_at)}</span>
+            <div className="mt-2">
+              <p className="text-xs text-muted-foreground font-medium">Last Deployment / Sync:</p>
+              <p className="mt-1 text-sm font-semibold text-foreground font-mono">{formatDateTime(app.updated_at)}</p>
             </div>
           </div>
         </div>

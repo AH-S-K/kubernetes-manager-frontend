@@ -15,7 +15,7 @@ export function PageContainer({
   children: ReactNode;
 }) {
   return (
-    <div className={cn("mx-auto w-full max-w-6xl px-4 sm:px-6", className)}>
+    <div className={cn("mx-auto w-full max-w-[1440px] px-6 sm:px-8 lg:px-10", className)}>
       {children}
     </div>
   );
@@ -59,23 +59,23 @@ export function PageHeader({
           )}
         >
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               {backTo && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="-ml-2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                  className="-ml-2 h-9 w-9 text-muted-foreground hover:text-foreground"
                   aria-label="Go back"
                   render={<Link to={backTo} />}
                 >
-                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                  <ArrowLeft className="h-5 w-5" aria-hidden="true" />
                 </Button>
               )}
-              <h1 className="truncate text-2xl font-semibold tracking-tight">{title}</h1>
+              <h1 className="truncate text-3xl font-extrabold tracking-tight text-foreground">{title}</h1>
               {badge}
             </div>
             {description ? (
-              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
+              <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-muted-foreground">{description}</p>
             ) : null}
           </div>
           {actions ? (

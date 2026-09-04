@@ -17,7 +17,6 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DisabledWithReason } from "@/components/ui/disabled-with-reason";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageContainer, PageHeader } from "@/components/ui/page-header";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { CardGridSkeleton } from "@/components/ui/skeletons";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -52,7 +51,7 @@ function NamespaceCard({
   const blocked = namespace.app_count > 0;
 
   return (
-    <article className="group relative flex flex-col justify-between rounded-xl border bg-card p-5 transition-all hover:border-primary/50 hover:bg-accent/20 shadow-sm">
+    <article className="group relative flex flex-col justify-between rounded-xl border border-border/80 bg-card p-6 shadow-xs transition-all hover:border-primary/60 hover:shadow-md">
       <Link
         to={paths.namespaceApps(clusterId, namespace.id)}
         className="absolute inset-0 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
@@ -60,28 +59,19 @@ function NamespaceCard({
       />
 
       <div>
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500">
-              <Layers className="h-4 w-4" aria-hidden="true" />
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
+              <Layers className="h-5 w-5" aria-hidden="true" />
             </span>
             <div className="min-w-0 relative z-10">
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <h2 className="cursor-default truncate font-mono text-sm font-semibold tracking-tight text-foreground hover:underline" />
-                  }
-                >
-                  {namespace.name}
-                </TooltipTrigger>
-                <TooltipContent className="font-mono text-xs max-w-xs break-all">
-                  {namespace.name}
-                </TooltipContent>
-              </Tooltip>
+              <h2 className="truncate font-mono text-base font-bold tracking-tight text-foreground" title={namespace.name}>
+                {namespace.name}
+              </h2>
             </div>
           </div>
 
-          <div className="relative z-10 flex items-center gap-1.5 shrink-0">
+          <div className="relative z-10 flex items-center gap-2 shrink-0">
             <StatusBadge state={namespace.state} size="sm" />
             <DisabledWithReason
               reason={
@@ -93,7 +83,7 @@ function NamespaceCard({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 text-muted-foreground hover:bg-destructive/15 hover:text-destructive transition-all"
+                className="h-8 w-8 text-muted-foreground hover:bg-destructive/15 hover:text-destructive transition-all"
                 aria-label={`Delete namespace ${namespace.name}`}
                 disabled={blocked}
                 onClick={(e) => {
@@ -101,25 +91,25 @@ function NamespaceCard({
                   onDelete(namespace);
                 }}
               >
-                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
               </Button>
             </DisabledWithReason>
           </div>
         </div>
 
-        <p className="mt-4 text-xs text-muted-foreground">
+        <p className="mt-4 text-xs font-medium text-muted-foreground font-mono">
           Created: {formatDateTime(namespace.created_at)}
         </p>
       </div>
 
-      <div className="mt-4 flex items-center justify-between border-t border-border/70 pt-3 pointer-events-none">
-        <span className="text-xs font-medium text-muted-foreground">
-          <span className="font-semibold tabular-nums text-foreground">{namespace.app_count}</span> {appLabel}
+      <div className="mt-5 flex items-center justify-between border-t border-border/70 pt-4 pointer-events-none">
+        <span className="text-sm font-medium text-muted-foreground">
+          <span className="font-mono text-base font-bold tabular-nums text-foreground">{namespace.app_count}</span> {appLabel}
         </span>
 
-        <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors group-hover:text-primary">
-          Browse
-          <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+        <span className="flex items-center gap-1 text-xs font-bold text-muted-foreground transition-colors group-hover:text-primary">
+          Browse Apps
+          <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
         </span>
       </div>
     </article>

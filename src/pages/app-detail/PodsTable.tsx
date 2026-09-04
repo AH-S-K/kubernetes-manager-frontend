@@ -8,7 +8,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { cn } from "@/lib/utils";
 import type { Pod } from "@/types/api";
 
-const COMPACT = { headerClassName: "h-9", cellClassName: "py-2" } as const;
+const COMPACT = { headerClassName: "h-11 text-xs uppercase tracking-wider font-semibold", cellClassName: "py-3.5 text-sm" } as const;
 
 export function PodsTable({ pods, isLoading = false }: { pods: Pod[]; isLoading?: boolean }) {
   const columns = useMemo<ColumnDef<Pod>[]>(
@@ -20,7 +20,7 @@ export function PodsTable({ pods, isLoading = false }: { pods: Pod[]; isLoading?
         meta: { mono: true, ...COMPACT },
         cell: ({ row }) => (
           <div className="flex items-center gap-1">
-            <span className="block max-w-[320px] truncate" title={row.original.name}>
+            <span className="block max-w-[480px] truncate" title={row.original.name}>
               {row.original.name}
             </span>
             <CopyButton value={row.original.name} label="pod name" className="h-6 w-6 shrink-0" />
